@@ -32,7 +32,7 @@ certifi==2025.11.12
 chardet==7.6.0
 colorlog==6.12.0
 cryptography==50.0.0
-deezer-python-gql @ git+https://github.com/music-assistant/deezer-python-gql@dfbce3097611e3c6647bdbd8a6d0db7ea9b3da17
+deezer-python-gql @ git+https://github.com/music-assistant/deezer-python-gql@d33e38453d29be6dee865cbbe50881a0f723d4ab
 defusedxml==0.7.1
 deno==2.9.6
 duration-parser==1.0.1
