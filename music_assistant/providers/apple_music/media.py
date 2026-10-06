@@ -237,7 +237,10 @@ class AppleMusicMediaManager:
             return await self._get_station_tracks(prov_playlist_id)
         return await self._get_playlist_tracks_cached(prov_playlist_id, page)
 
-    @use_cache(3600 * 3, cache_checksum=PARSED_ITEM_CACHE_CHECKSUM)
+    # Stale-while-revalidate: a cold fetch costs two requests per 100 tracks and Apple's
+    # 429s can stretch that to minutes, so playback starts from the last known listing
+    # while an expired one (at most twice a day) is refreshed in the background.
+    @use_cache(3600 * 12, cache_checksum=PARSED_ITEM_CACHE_CHECKSUM, allow_expired_cache=True)
     async def _get_playlist_tracks_cached(
         self, prov_playlist_id: str, page: int = 0
     ) -> list[Track]:
