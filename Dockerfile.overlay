@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+
+# Fork image: this branch's sources laid over the official release it is based on.
+# The official image is kept as the base because it carries what a build from source
+# cannot reproduce: the bundled provider secrets (helpers/app_secrets.json), the
+# cliairplay binary and the pinned dependency set.
+ARG MASS_VERSION=2.10.5
+FROM ghcr.io/music-assistant/server:${MASS_VERSION}
+
+COPY music_assistant /tmp/music_assistant
+RUN SITE_PACKAGES="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" \
+    && cp -a /tmp/music_assistant/. "$SITE_PACKAGES/music_assistant/" \
+    && rm -rf /tmp/music_assistant \
+    && python -m compileall -q "$SITE_PACKAGES/music_assistant"
