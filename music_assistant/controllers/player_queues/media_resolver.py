@@ -378,7 +378,8 @@ class MediaResolver:
             concrete `PodcastEpisode`.
         :param episode: A concrete `PodcastEpisode`, an `item_id` / `uri`,
             a case-insensitive substring of an episode name, or one of the
-            reserved lowercase keywords `"latest"` / `"newest"`.
+            reserved lowercase keywords `"latest"` / `"newest"`. Without one the
+            whole podcast is returned newest episode first.
         :param userid: User whose resume position should be applied.
         :param start_from_beginning: When True, the resolved episode starts at position 0,
             ignoring any saved resume position. The stored progress itself is left untouched.
@@ -414,6 +415,16 @@ class MediaResolver:
                 )
             await self._set_episode_resume_point(latest, userid, start_from_beginning)
             return UniqueList([latest])
+        if episode is None:
+            # a podcast played as a whole starts at its newest episode and works back
+            # through the older ones (the order from before 2.10), whatever was played
+            if not all_episodes:
+                raise InvalidDataError(
+                    f"Unable to resolve episode to play for Podcast {podcast.name}"
+                )
+            newest_first = sorted(all_episodes, key=lambda x: x.position, reverse=True)
+            await self._set_episode_resume_point(newest_first[0], userid, start_from_beginning)
+            return UniqueList(newest_first)
         # if a episode was provided, a user explicitly selected a episode to play
         # so we need to find the index of the episode in the list
         resolved_episode: PodcastEpisode | None = None
@@ -437,24 +448,6 @@ class MediaResolver:
                     resume_position_ms,
                 ) = await self.mass.music.get_resume_position(resolved_episode, userid=userid)
                 resolved_episode.resume_position_ms = 0 if fully_played else resume_position_ms
-        else:
-            # get first episode that is not fully played
-            for ep in all_episodes:
-                if ep.fully_played:
-                    continue
-                # ensure we have accurate resume info
-                (
-                    fully_played,
-                    resume_position_ms,
-                ) = await self.mass.music.get_resume_position(ep, userid=userid)
-                if fully_played:
-                    continue
-                ep.resume_position_ms = resume_position_ms
-                resolved_episode = ep
-                break
-            else:
-                # no episodes found that are not fully played, so we start at the beginning
-                resolved_episode = next((x for x in all_episodes), None)
         if resolved_episode is None:
             raise InvalidDataError(f"Unable to resolve episode to play for Podcast {podcast.name}")
         if start_from_beginning:
