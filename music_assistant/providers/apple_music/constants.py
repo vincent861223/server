@@ -27,6 +27,8 @@ SUPPORTED_FEATURES = {
 }
 
 MUSIC_APP_TOKEN = app_var("apple_music_token")
+PLAYLIST_TRACKS_REFRESH_TASK_ID = "apple_music_refresh_playlist_tracks"
+PLAYLIST_TRACKS_REFRESH_INTERVAL_HOURS = 12
 WIDEVINE_BASE_PATH = "/usr/local/bin/widevine_cdm"
 DECRYPT_CLIENT_ID_FILENAME = "client_id.bin"
 DECRYPT_PRIVATE_KEY_FILENAME = "private_key.pem"
