@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
+from music_assistant_models.background_task import TaskSchedule
+from music_assistant_models.errors import MusicAssistantError
 from music_assistant_models.media_items import (
     Album,
     Artist,
@@ -28,6 +30,8 @@ from .constants import (
     CONF_MUSIC_USER_MANUAL_TOKEN,
     CONF_MUSIC_USER_TOKEN,
     MUSIC_APP_TOKEN,
+    PLAYLIST_TRACKS_REFRESH_INTERVAL_HOURS,
+    PLAYLIST_TRACKS_REFRESH_TASK_ID,
     SUPPORTED_FEATURES,
 )
 from .helpers import browse_playlists
@@ -96,6 +100,37 @@ class AppleMusicProvider(RecommendationPayloadMixin, MusicProvider):
         )
         self._storefront = await self.api_client.get_user_storefront()
         await self.streaming_manager.initialize()
+        # keep the library playlist listings cached ahead of playback: a cold fetch of a
+        # large playlist can be throttled by Apple for minutes
+        self.mass.tasks.register_scheduled_task(
+            task_id=f"{PLAYLIST_TRACKS_REFRESH_TASK_ID}_{self.instance_id}",
+            name="Refresh Apple Music playlist tracks",
+            handler=self._refresh_playlist_tracks,
+            schedule=TaskSchedule.hourly(every=PLAYLIST_TRACKS_REFRESH_INTERVAL_HOURS),
+            initial_delay=60,
+            allow_retry=True,
+        )
+
+    async def unload(self, is_removed: bool = False) -> None:
+        """Handle unload/close of the provider."""
+        self.mass.tasks.unregister_scheduled_task(
+            f"{PLAYLIST_TRACKS_REFRESH_TASK_ID}_{self.instance_id}",
+            clear_persisted_state=is_removed,
+        )
+        await super().unload(is_removed)
+
+    async def _refresh_playlist_tracks(self) -> None:
+        """Re-fetch the tracks of every library playlist into the cache."""
+        async for playlist in self.get_library_playlists():
+            try:
+                async with self.mass.cache.handle_refresh(True):
+                    page = 0
+                    while await self.get_playlist_tracks(playlist.item_id, page):
+                        page += 1
+            except MusicAssistantError as err:
+                self.logger.warning(
+                    "Could not refresh the tracks of playlist %s: %s", playlist.name, err
+                )
 
     # ------------------------------------------------------------------
     # Browse / search / recommendations
