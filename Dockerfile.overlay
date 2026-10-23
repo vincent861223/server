@@ -4,7 +4,7 @@
 # The official image is kept as the base because it carries what a build from source
 # cannot reproduce: the bundled provider secrets (helpers/app_secrets.json), the
 # cliairplay binary and the pinned dependency set.
-ARG MASS_VERSION=2.10.5
+ARG MASS_VERSION=2.10.7
 FROM ghcr.io/music-assistant/server:${MASS_VERSION}
 
 COPY music_assistant /tmp/music_assistant
