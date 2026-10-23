@@ -46,6 +46,11 @@ async def run_setup(session: SetupSession) -> None:
     """
     mass = session.mass
     collected: dict[str, ConfigValueType] = {}
+    # a stored app token overrides the bundled one and a reconfigure merges into the old
+    # setup_data, so a stored token Apple now rejects (e.g. expired) must be cleared here
+    stored_app_token = session.context.setup_data.get(CONF_MUSIC_APP_TOKEN)
+    if stored_app_token and await _app_token_accepted(mass, str(stored_app_token)) is False:
+        collected[CONF_MUSIC_APP_TOKEN] = None
     # prefer the bundled developer token; only prompt for (and store) a manual one when
     # the bundle ships an empty/expired token, e.g. on development builds
     app_token = MUSIC_APP_TOKEN
